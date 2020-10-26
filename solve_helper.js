@@ -77,15 +77,16 @@ var square_states = {
     "square open8": 8
 };
 
+// needs to be reset on game restart
 state_revealed = {};
 function state(loc) {
     if (state_revealed.hasOwnProperty(loc)) {
         return state_revealed[loc]
     } else {
         var targetNode = document.getElementById(loc);
-        console.log('hit')
         if (square_states[targetNode.className] == "flagged" || square_states[targetNode.className] > -1) {
             state_revealed[loc] = square_states[targetNode.className];
+            return state_revealed[loc];
         }
         return square_states[targetNode.className];
     }
@@ -97,6 +98,7 @@ function random() {
     return x.toString() + '_' + y.toString()
 }
 
+// doesn't need to be reset on game restart. static
 idxs_lookup_table = {};
 function idxs(loc) {
     // convert from string repr of indexes (e.g "12_8") to indexs [12, 8]
@@ -110,6 +112,7 @@ function idxs(loc) {
         return loc_lookup_table[loc]
     }
 }
+// doesn't need to be reset on game restart. static
 loc_lookup_table = {};
 function loc_from_idxs(idxs) {
     // convert from array of indexes (e.g [12, 8]) to string repr "12_8"
@@ -122,7 +125,7 @@ function loc_from_idxs(idxs) {
         return y.toString(10) + "_" + x.toString(10)
     }
 }
-
+// doesn't need to be reset on game restart. static
 adjacent_idxs_lookup = {};
 function adjacent_idxs(loc){
     if (adjacent_idxs_lookup.hasOwnProperty(loc)) {
@@ -168,7 +171,6 @@ function adjacent_idxs(loc){
 function opens(loc) {
     var count = 0;
     adjacents = adjacent_idxs(loc);
-
     for (const k in adjacents) { // k is just an index!
         if (state(loc_from_idxs(adjacents[k])) == -1) {
             count += 1;
@@ -192,7 +194,12 @@ function every_square(func) {
         y += 1;
         for (var x of Array(x_max).keys()) {
             x += 1;
-            func(loc_from_idxs([y,x]))
+            // skip if flagged or zero
+            if (state_revealed.hasOwnProperty(loc_from_idxs([y,x])) && (state_revealed[loc_from_idxs([y,x])] == 0 || state_revealed[loc_from_idxs([y,x])] == "flagged")) {
+
+            } else {
+                func(loc_from_idxs([y,x]))
+            }
         }
     }
 }
@@ -259,10 +266,12 @@ function two_for_one(loc) {
 
 function quick_start() {
     mine('face');
+    state_revealed = {};
     for (i=0; i<52; i++) {
         var value = mine(random());
         if (value == -666) {
             mine('face');
+            state_revealed = {};
             i = 0;
         } else {
             every_square(two_for_one);
@@ -270,6 +279,10 @@ function quick_start() {
     }
 }
 
+function face() {
+    mine('face');
+    state_revealed = {};
+}
 
 quick_start();
 setInterval(function(){every_square(two_for_one);}, 201)
