@@ -83,11 +83,13 @@ function state(loc) {
         return state_revealed[loc]
     } else {
         var targetNode = document.getElementById(loc);
-        if (targetNode.className == "flagged" || targetNode.className > -1) {
-            state_revealed[loc] = targetNode.className;
+        console.log('hit')
+        if (square_states[targetNode.className] == "flagged" || square_states[targetNode.className] > -1) {
+            state_revealed[loc] = square_states[targetNode.className];
         }
         return square_states[targetNode.className];
-}}
+    }
+}
 
 function random() {
     var x = Math.floor((Math.random() * 15) + 1);
@@ -96,20 +98,29 @@ function random() {
 }
 
 idxs_lookup_table = {};
-// TODO
 function idxs(loc) {
-    // convert from string repr of indexes (e.g "12_8") to indexs [12, 8] 
-    var n = loc.indexOf("_");
-    var first = loc.slice(0, n); // y 
-    var second = loc.slice(n+1); // x
-    return [parseInt(first, 10), parseInt(second, 10)]
+    // convert from string repr of indexes (e.g "12_8") to indexs [12, 8]
+    if (idxs_lookup_table.hasOwnProperty(loc)) {
+        return loc_lookup_table[loc]
+    } else { 
+        var n = loc.indexOf("_");
+        var first = loc.slice(0, n); // y 
+        var second = loc.slice(n+1); // x
+        loc_lookup_table[loc] = [parseInt(first, 10), parseInt(second, 10)];
+        return loc_lookup_table[loc]
+    }
 }
 loc_lookup_table = {};
 function loc_from_idxs(idxs) {
     // convert from array of indexes (e.g [12, 8]) to string repr "12_8"
-    var y = idxs[0];
-    var x = idxs[1];
-    return y.toString(10) + "_" + x.toString(10)
+    if (loc_lookup_table.hasOwnProperty(idxs)) {
+        return loc_lookup_table[idxs]
+    } else {
+        var y = idxs[0];
+        var x = idxs[1];
+        loc_lookup_table[idxs] = y.toString(10) + "_" + x.toString(10);
+        return y.toString(10) + "_" + x.toString(10)
+    }
 }
 
 adjacent_idxs_lookup = {};
@@ -203,7 +214,8 @@ function basic_safe_clicker(loc) {
         const touching_squares = adjacent_idxs(loc)
         for (const square in touching_squares) {
             if (state(loc_from_idxs(touching_squares[square])) == -1) {
-                mine(loc_from_idxs(touching_squares[square]));
+                const state_val = mine(loc_from_idxs(touching_squares[square]));
+                state_revealed[loc] = state_val;
             }
         }
     }
@@ -222,7 +234,8 @@ function two_for_one(loc) {
                 const touching_squares = adjacent_idxs(loc)
                 for (const square in touching_squares) {
                     if (state(loc_from_idxs(touching_squares[square])) == -1) {
-                        mine(loc_from_idxs(touching_squares[square]));
+                        const state_val = mine(loc_from_idxs(touching_squares[square]));
+                        state_revealed[loc] = state_val;
                     }
                 }
             }
@@ -236,6 +249,7 @@ function two_for_one(loc) {
                     for (const idx in adjacents) {
                         if (state(loc_from_idxs(adjacents[idx])) == -1) {
                             flag(loc_from_idxs(adjacents[idx]));
+                            state_revealed[loc_from_idxs(adjacents[idx])] = "flagged";
                         }
                     }
             }
@@ -245,11 +259,13 @@ function two_for_one(loc) {
 
 function quick_start() {
     mine('face');
-    for (i=0; i<29; i++) {
+    for (i=0; i<52; i++) {
         var value = mine(random());
         if (value == -666) {
             mine('face');
             i = 0;
+        } else {
+            every_square(two_for_one);
         }
     }
 }
