@@ -77,10 +77,17 @@ var square_states = {
     "square open8": 8
 };
 
+state_revealed = {};
 function state(loc) {
-    var targetNode = document.getElementById(loc);
-    return square_states[targetNode.className];
-}
+    if (state_revealed.hasOwnProperty(loc)) {
+        return state_revealed[loc]
+    } else {
+        var targetNode = document.getElementById(loc);
+        if (targetNode.className == "flagged" || targetNode.className > -1) {
+            state_revealed[loc] = targetNode.className;
+        }
+        return square_states[targetNode.className];
+}}
 
 function random() {
     var x = Math.floor((Math.random() * 15) + 1);
@@ -207,14 +214,17 @@ function basic_safe_clicker(loc) {
 
 function two_for_one(loc) {
     const state_of_loc = state(loc);
-    // if (state_of_loc == -666) {
-    //     mine('face');
-    // } else 
     const flags_of_loc = flags(loc);
     if (flags_of_loc == state_of_loc) {
         if (state_of_loc > 0) {
             if (state_of_loc <= 8) {
-                basic_safe_clicker(loc);
+                // basic_safe_clicker(loc);
+                const touching_squares = adjacent_idxs(loc)
+                for (const square in touching_squares) {
+                    if (state(loc_from_idxs(touching_squares[square])) == -1) {
+                        mine(loc_from_idxs(touching_squares[square]));
+                    }
+                }
             }
         }
     } else if ((state_of_loc-flags_of_loc == opens(loc))) {
@@ -245,6 +255,5 @@ function quick_start() {
 }
 
 
-// quick_start();
+quick_start();
 setInterval(function(){every_square(two_for_one);}, 201)
-// setInterval(function(){quick_start();}, 12018)
