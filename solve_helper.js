@@ -189,20 +189,50 @@ function flags(loc) {
     return count
 }
 
-function every_square(func) {
-    for (var y of Array(y_max).keys()) {
-        y += 1;
-        for (var x of Array(x_max).keys()) {
-            x += 1;
-            // skip if flagged or zero
-            if (state_revealed.hasOwnProperty(loc_from_idxs([y,x])) && (state_revealed[loc_from_idxs([y,x])] == 0 || state_revealed[loc_from_idxs([y,x])] == "flagged")) {
+// function every_square(func) {
+//     for (var y of Array(y_max).keys()) {
+//         y += 1;
+//         for (var x of Array(x_max).keys()) {
+//             x += 1;
+//             // skip if flagged or zero
+//             if (state_revealed.hasOwnProperty(loc_from_idxs([y,x])) && (state_revealed[loc_from_idxs([y,x])] == 0 || state_revealed[loc_from_idxs([y,x])] == "flagged")) {
 
-            } else {
-                func(loc_from_idxs([y,x]))
-            }
-        }
+//             } else {
+//                 func(loc_from_idxs([y,x]))
+//             }
+//         }
+//     }
+// }
+
+
+// start not_closed with every loc value
+// remove key when **every touching square is a number or a flag** AKA square is closed
+// BUILD NOT CLOSED OBJECT with all possible loc keys
+var not_closed = {};
+for (var y of Array(y_max).keys()) {
+    y += 1;
+    for (var x of Array(x_max).keys()) {
+        x += 1;
+        not_closed[loc_from_idxs([y,x])] = 1;
     }
 }
+
+const open_states = [-1, 0, 1, 2, 3, 4, 5, 6, 7, 8];
+function check_and_close_closed(loc) {
+    const adjs = adjacent_idxs[loc];
+    for (const idx in adjs) {
+        if (open_states.includes(state(adjs[idx]))){
+            return -1;
+        }
+    }
+    delete not_closed[loc];
+}
+
+const every_square_refactor = (func) => {
+    for (var loc of Object.keys(not_closed)) {
+        func(loc);
+    }
+} 
 
 function flag_all_opens(loc) {
     if (state(loc)-flags(loc) == opens(loc)) {
@@ -230,7 +260,11 @@ function basic_safe_clicker(loc) {
 
 
 
-
+/**
+ * Runs logic of flag_all_opens and basic_safe_clicker
+ * @param {string} loc The string repr of a location on the board. e.g. "{y}_{x}" "8_7"
+ * @return {undefined}
+ */
 function two_for_one(loc) {
     const state_of_loc = state(loc);
     const flags_of_loc = flags(loc);
@@ -267,14 +301,14 @@ function two_for_one(loc) {
 function quick_start() {
     mine('face');
     state_revealed = {};
-    for (i=0; i<52; i++) {
+    for (i=0; i<10; i++) {
         var value = mine(random());
         if (value == -666) {
             mine('face');
             state_revealed = {};
             i = 0;
         } else {
-            every_square(two_for_one);
+            every_square_refactor(two_for_one);
         }
     }
 }
@@ -285,4 +319,4 @@ function face() {
 }
 
 quick_start();
-setInterval(function(){every_square(two_for_one);}, 201)
+setInterval(function(){every_square_refactor(two_for_one);}, 777)
