@@ -62,7 +62,12 @@ function flag(loc) {
     triggerMouseEvent (targetNode, "click");
 }
 
-var square_states = {
+function face() {
+    mine('face');
+    state_revealed = {};
+}
+
+const square_states = {
     "square blank": -1,
     "square bombdeath": -666,
     "square bombflagged": "flagged",
@@ -76,9 +81,10 @@ var square_states = {
     "square open7": 7,
     "square open8": 8
 };
+const open_states = [-1, "flagged"];
 
-// needs to be reset on game restart
-state_revealed = {};
+// state_revealed needs to be reset on game restart otherwise presumed game state will be wrong
+state_revealed = {}; // contains state of squares that are "flagged" or contain a revealed number
 function state(loc) {
     if (state_revealed.hasOwnProperty(loc)) {
         return state_revealed[loc]
@@ -90,12 +96,6 @@ function state(loc) {
         }
         return square_states[targetNode.className];
     }
-}
-
-function random() {
-    var x = Math.floor((Math.random() * 15) + 1);
-    var y = Math.floor((Math.random() * 29) + 1);
-    return x.toString() + '_' + y.toString()
 }
 
 // doesn't need to be reset on game restart. static
@@ -168,6 +168,7 @@ function adjacent_idxs(loc){
     }
 }
 
+// very variable state. could change any time a blank square is clicked
 function opens(loc) {
     var count = 0;
     adjacents = adjacent_idxs(loc);
@@ -178,6 +179,20 @@ function opens(loc) {
     }
     return count
 }
+function open_locs(loc) {
+    var opens = [];
+    adjacents = adjacent_idxs(loc);
+    for (const k in adjacents) { // k is just an index!
+        const adjacents_k_loc = loc_from_idxs(adjacents[k]);
+        if (state(adjacents_k_loc) == -1) {
+            opens.push(adjacents_k_loc);
+        }
+    }
+    return opens
+}
+
+// TODO: would like to memoize this lookup
+//      need to update all adjacent locs any time a flag is placed
 function flags(loc) {
     var count = 0;
     adjacents = adjacent_idxs(loc);
@@ -189,75 +204,98 @@ function flags(loc) {
     return count
 }
 
-// function every_square(func) {
-//     for (var y of Array(y_max).keys()) {
-//         y += 1;
-//         for (var x of Array(x_max).keys()) {
-//             x += 1;
-//             // skip if flagged or zero
-//             if (state_revealed.hasOwnProperty(loc_from_idxs([y,x])) && (state_revealed[loc_from_idxs([y,x])] == 0 || state_revealed[loc_from_idxs([y,x])] == "flagged")) {
+function every_square(func) {
+    for (var y of Array(y_max).keys()) {
+        y += 1;
+        for (var x of Array(x_max).keys()) {
+            x += 1;
+            // skip if flagged or zero
+            if (state_revealed.hasOwnProperty(loc_from_idxs([y,x])) && (state_revealed[loc_from_idxs([y,x])] == 0 || state_revealed[loc_from_idxs([y,x])] == "flagged")) {
 
-//             } else {
-//                 func(loc_from_idxs([y,x]))
+            } else {
+                func(loc_from_idxs([y,x]))
+            }
+        }
+    }
+}
+
+
+// // TODO:: fix bug (logic?) here and uncomment out //delete portion to start filtering away closed squares
+
+// // start not_closed with every loc value
+// // remove key when **every touching square is a number or a flag** AKA square is closed
+// // BUILD NOT CLOSED OBJECT with all possible loc keys
+
+// var not_closed = {};
+// for (var y of Array(y_max).keys()) {
+//     y += 1;
+//     for (var x of Array(x_max).keys()) {
+//         x += 1;
+//         not_closed[loc_from_idxs([y,x])] = 1;
+//     }
+// }
+
+// function check_and_close_closed(loc) {
+//     const adjs = adjacent_idxs[loc];
+//     var an_open = [];
+//     for (const idx in adjs) {
+//         if (open_states.includes(state(adjs[idx]))){
+//             an_open.push(1);
+//         }
+//     }
+//     if (!an_open.includes(1)) {
+//         // delete not_closed[loc];
+//     }
+// }
+
+// const every_square_refactor = (func) => {
+//     for (var loc of Object.keys(not_closed)) {
+//         func(loc);
+//     }
+// } 
+
+function flag_all_opens(loc) {
+    if (state(loc)-flags(loc) == opens(loc)) {
+        const adj_opens = open_locs(loc);
+        for (const k in adj_opens) {
+            flag(adj_opens[k]);
+        }
+        // const adjacents = adjacent_idxs(loc);
+        // for (const idx in adjacents) {
+        //     const adjacent_idx_loc = loc_from_idxs(adjacents[idx]);
+        //     if (state(adjacent_idx_loc) == -1) {
+        //         flag(adjacent_idx_loc);
+        //     }
+        // }
+
+    }
+}
+
+// function basic_safe_clicker(loc) {
+//     // run this for every square with state [open 1 - open 7] aka state(loc) > 0 and state(loc) <= 8
+//     if (flags(loc) == state(loc)) {
+//         const touching_squares = adjacent_idxs(loc);
+//         for (const square in touching_squares) {
+//             const touching_squares_square_loc = loc_from_idxs(touching_squares[square]);
+//             if (state(touching_squares_square_loc) == -1) {
+//                 const state_val = mine(touching_squares_square_loc);
+//                 state_revealed[touching_squares_square_loc] = state_val;
 //             }
 //         }
 //     }
 // }
-
-
-// start not_closed with every loc value
-// remove key when **every touching square is a number or a flag** AKA square is closed
-// BUILD NOT CLOSED OBJECT with all possible loc keys
-var not_closed = {};
-for (var y of Array(y_max).keys()) {
-    y += 1;
-    for (var x of Array(x_max).keys()) {
-        x += 1;
-        not_closed[loc_from_idxs([y,x])] = 1;
-    }
-}
-
-const open_states = [-1, 0, 1, 2, 3, 4, 5, 6, 7, 8];
-function check_and_close_closed(loc) {
-    const adjs = adjacent_idxs[loc];
-    for (const idx in adjs) {
-        if (open_states.includes(state(adjs[idx]))){
-            return -1;
-        }
-    }
-    delete not_closed[loc];
-}
-
-const every_square_refactor = (func) => {
-    for (var loc of Object.keys(not_closed)) {
-        func(loc);
-    }
-} 
-
-function flag_all_opens(loc) {
-    if (state(loc)-flags(loc) == opens(loc)) {
-        adjacents = adjacent_idxs(loc);
-        for (const idx in adjacents) {
-            if (state(loc_from_idxs(adjacents[idx])) == -1) {
-                flag(loc_from_idxs(adjacents[idx]));
-            }
-        }
-    }
-}
-
 function basic_safe_clicker(loc) {
-    // run this for every square with state [open 1 - open 7] aka state(loc) > 0 and state(loc) <= 8
-    if (flags(loc) == state(loc)) {
-        const touching_squares = adjacent_idxs(loc)
-        for (const square in touching_squares) {
-            if (state(loc_from_idxs(touching_squares[square])) == -1) {
-                const state_val = mine(loc_from_idxs(touching_squares[square]));
-                state_revealed[loc] = state_val;
-            }
-        }
+    const touching_squares = adjacent_idxs(loc);
+    for (const square in touching_squares) {
+        mine(loc_from_idxs(touching_squares[square]));
     }
 }
-
+function click_all_opens(loc) {
+    const open_touching_squares = open_locs(loc);
+    for (const k in open_touching_squares) {
+        state_revealed[open_touching_squares[k]] = mine(open_touching_squares[k]);
+    }
+}
 
 
 /**
@@ -268,36 +306,25 @@ function basic_safe_clicker(loc) {
 function two_for_one(loc) {
     const state_of_loc = state(loc);
     const flags_of_loc = flags(loc);
-    if (flags_of_loc == state_of_loc) {
-        if (state_of_loc > 0) {
-            if (state_of_loc <= 8) {
-                // basic_safe_clicker(loc);
-                const touching_squares = adjacent_idxs(loc)
-                for (const square in touching_squares) {
-                    if (state(loc_from_idxs(touching_squares[square])) == -1) {
-                        const state_val = mine(loc_from_idxs(touching_squares[square]));
-                        state_revealed[loc] = state_val;
-                    }
-                }
-            }
-        }
-    } else if ((state_of_loc-flags_of_loc == opens(loc))) {
-        if (state_of_loc > 0) {
-            if (state_of_loc <= 8) {
-                // flag_all_opens(loc);
-                if (state_of_loc-flags_of_loc == opens(loc)) {
-                    adjacents = adjacent_idxs(loc);
-                    for (const idx in adjacents) {
-                        if (state(loc_from_idxs(adjacents[idx])) == -1) {
-                            flag(loc_from_idxs(adjacents[idx]));
-                            state_revealed[loc_from_idxs(adjacents[idx])] = "flagged";
-                        }
-                    }
-            }
-        }
-    }
-}}
+    const opens_of_loc = opens(loc);
 
+    if (!open_states.includes(state_of_loc)) {
+            switch (state_of_loc - flags_of_loc) {
+                case 0: 
+                    basic_safe_clicker(loc);
+                    break;
+                case opens_of_loc: 
+                    flag_all_opens(loc);
+                    break;
+            }
+    }
+}
+
+function random() {
+    var x = Math.floor((Math.random() * (x_max -1)) + 1);
+    var y = Math.floor((Math.random() * (y_max - 1)) + 1);
+    return y.toString() + '_' + x.toString()
+}
 function quick_start() {
     mine('face');
     state_revealed = {};
@@ -307,16 +334,12 @@ function quick_start() {
             mine('face');
             state_revealed = {};
             i = 0;
-        } else {
-            every_square_refactor(two_for_one);
+        } 
+        else {
+            every_square(two_for_one);
         }
     }
 }
 
-function face() {
-    mine('face');
-    state_revealed = {};
-}
-
 quick_start();
-setInterval(function(){every_square_refactor(two_for_one);}, 777)
+setInterval(function(){every_square(two_for_one);}, 777)
